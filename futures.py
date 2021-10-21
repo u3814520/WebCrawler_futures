@@ -1,3 +1,4 @@
+import threading
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
@@ -61,6 +62,10 @@ def crawl(data):
         json.dump(data_all, f, ensure_ascii=False, indent=4)
         print('saved file to', Day)
 
+threads = []
+for i in range(os.cpu_count()):
+  threads.append(threading.Thread(target = crawl, args = (i,)))
+  threads[i].start()
 
 date = datetime.today()
 while True:
@@ -68,5 +73,11 @@ while True:
     date = date - timedelta(days=1)
     if date < datetime.today() - timedelta(days=100):
         break
+
 end = time.time()
 print(f'爬取資料總花費時間:{int(end - start)}秒')
+
+for i in range(os.cpu_count()):
+  threads[i].join()
+
+
