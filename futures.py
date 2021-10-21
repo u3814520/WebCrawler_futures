@@ -67,7 +67,7 @@ for i in range(os.cpu_count()):
   threads.append(threading.Thread(target = crawl, args = (i,)))
   threads[i].start()
 
-date = datetime.today()
+date = datetime.today()- timedelta(days=1)
 while True:
     data = crawl(date)
     date = date - timedelta(days=1)
