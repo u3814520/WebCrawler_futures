@@ -1,5 +1,5 @@
-# from concurrent.futures import as_completed , ProcessPoolExecutor
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed , ProcessPoolExecutor
+# from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
@@ -71,7 +71,7 @@ def main():
 
     start = time.time()
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ProcessPoolExecutor(max_workers=8) as executor:  # ThreadPoolExecutor
         futures = []
         today = datetime.today()
         date = today
