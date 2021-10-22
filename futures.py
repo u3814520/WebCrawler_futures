@@ -1,4 +1,5 @@
-import threading
+# from concurrent.futures import as_completed , ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
@@ -12,18 +13,17 @@ if not os.path.exists('./futures_data'):
 start = time.time()
 
 
-def crawl(data):
-    Day = data.strftime('%Y%m%d')
-    print('crawling' + ' ' + Day)
+def crawl(date):
+    print('crawling' + ' ' + date.strftime('%Y%m%d'))
     r = requests.get(
-        'https://www.taifex.com.tw/cht/3/futContractsDate?queryDate={}%2F{}%2F{}'.format(data.year, data.month,
-                                                                                         data.day))
+        'https://www.taifex.com.tw/cht/3/futContractsDate?queryDate={}%2F{}%2F{}'.format(date.year, date.month,
+                                                                                         date.day))
     soup = BeautifulSoup(r.text, 'html.parser')
     try:
         table = soup.find('table', class_='table_f')
         trs = table.find_all('tr')
     except AttributeError:
-        print('no data for', data)
+        print('no data for', date)
         return
 
     rows = trs[3:]
@@ -57,27 +57,43 @@ def crawl(data):
             data_all[product] = {who: contents}
         else:
             data_all[product][who] = contents
+    return data_all,date
 
-    with open(f'./futures_data/{Day}.json', 'w') as f:
-        json.dump(data_all, f, ensure_ascii=False, indent=4)
-        print('saved file to', Day)
+def save_json(date, data, path):
+    file = os.path.join(path, 'futures' + date.strftime('%Y%m%d') + '.json')
+    with open(file, 'w') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+    print('saved file to', file)
 
-threads = []
-for i in range(os.cpu_count()):
-  threads.append(threading.Thread(target = crawl, args = (i,)))
-  threads[i].start()
+def main():
+    download_dir = 'futures_data'
+    os.makedirs(download_dir, exist_ok=True)
 
-date = datetime.today()- timedelta(days=1)
-while True:
-    data = crawl(date)
-    date = date - timedelta(days=1)
-    if date < datetime.today() - timedelta(days=100):
-        break
+    start = time.time()
 
-end = time.time()
-print(f'爬取資料總花費時間:{int(end - start)}秒')
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = []
+        today = datetime.today()
+        date = today
 
-for i in range(os.cpu_count()):
-  threads[i].join()
+        while True:
+            future = executor.submit(crawl, date)
+            futures.append(future)
+
+            date = date - timedelta(days=1)
+            if date <= today - timedelta(days=1096):
+                break
+
+        for future in as_completed(futures):
+            if future.result():
+                date, data_all = future.result()
+                save_json(data_all, date, download_dir)
+
+    end = time.time()
+    print(f'下載資料共花費{int(end - start)}秒')
+
+
+if __name__ == '__main__':
+    main()
 
 
